@@ -1,0 +1,41 @@
+from fenics import *
+from classes.boundaries import *
+from classes.createObjectSettings import *
+from classes.problems import *
+from classes.staticMethods import StaticMethod
+from classes.thermalMaterial import ThermalParametersSteadyState, ThermalParametersTransient, HeatConductivity, VolumetricHeatSource
+from classes.simulationParameters import SimulationParameters
+
+#One more change
+#Testing branch
+#Testing steadystate solver
+boxSpecimen = StaticMethod.createClassObjectFromJSON('settings/specimenSize.json', SpecimenSettings)
+mesh = StaticMethod.createBoxMesh(boxSpecimen)
+V = FunctionSpace(mesh, 'CG', 1)
+temperature = StaticMethod.createClassObjectFromJSON('settings/temperatures.json', CreateObjectSettings)
+top = Top(boxSpecimen)
+bottom = Bottom()
+bottomBoundaryTemperature = Constant(temperature.bottom)
+topBoundaryTemperature = Constant(temperature.top)
+temperatureField_n = interpolate(Constant(temperature.initial), V)
+boundaryConditions = [DirichletBC(V, bottomBoundaryTemperature, bottom), 
+                      DirichletBC(V, topBoundaryTemperature, top)]
+
+heatConductivity = HeatConductivity(temperatureDependency=True, temperatureDependentExpression="1+T", store=True)
+thermalParameters = ThermalParametersTransient(heatConductivity=heatConductivity)
+simulationParameters = SimulationParameters(trapezoidalParameter = 0.5)
+transientHeatProblem = TransientHeat(V, initialTemperatureField=temperatureField_n, thermalParameters=thermalParameters, simulationParameters=simulationParameters)
+transientHeatProblem.getSolution(boundaryConditions, nonZeroInitialGuess=True)
+
+# q = VolumetricHeatSource()
+# thermalParameters = ThermalParametersSteadyState(heatConductivity=heatConductivity, volumetricHeatSource=q)
+# steadyStateHeatProblem = SteadyStateHeat(V, thermalParameters=thermalParameters)
+# steadyStateHeatProblem.getSolution(boundaryConditions, nonZeroInitialGuess=True)
+
+
+# printSettings = StaticMethod.createClassObjectFromJSON('settings/printerSettings.json', PrintSettings)
+# mesh = StaticMethod.createBoxMeshFromPrintSettings(printSettings)
+# top = Top(printSettings)
+
+# problem = TransientMovingHeatSource(thermalMaterial, printSettings, outputFileNameWithPath)
+# problem.linearSolve(V, boundaryConditions[0], temperatureField_n)

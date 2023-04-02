@@ -1,0 +1,13 @@
+{"heatSourceSizeX": 100.0,     
+"heatSourceSizeY": 100.0, 
+"heatSourceSizeZ":100.0, 
+"cellsPerHeatSourceDimension": 2,
+"scanSpeed":1000,     
+"laserPower":300,
+"laserEfficiency":0.7,
+"hatchDistance":50.0,
+"length":1.0,
+"width":1.0,
+"thickness":0.5
+}
+
