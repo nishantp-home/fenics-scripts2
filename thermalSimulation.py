@@ -6,6 +6,7 @@ from classes.staticMethods import StaticMethod
 from classes.thermalMaterial import ThermalParametersSteadyState, ThermalParametersTransient, HeatConductivity, VolumetricHeatSource
 from classes.simulationParameters import SimulationParameters
 
+#Chaned here
 #Testing steadystate solver
 boxSpecimen = StaticMethod.createClassObjectFromJSON('settings/specimenSize.json', SpecimenSettings)
 mesh = StaticMethod.createBoxMesh(boxSpecimen)
