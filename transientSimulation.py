@@ -19,8 +19,9 @@ temperatureField_n = interpolate(Constant(temperature.initial), V)
 boundaryConditions = [DirichletBC(V, bottomBoundaryTemperature, bottom), 
                       DirichletBC(V, topBoundaryTemperature, top)]
 
-heatConductivity = HeatConductivity(temperatureDependency=True, temperatureDependentExpression="1+T", store=True)
+#heatConductivity = HeatConductivity(temperatureDependency=True, temperatureDependentExpression="1+T", store=True)
+heatConductivity = HeatConductivity(constant=100.0)
 thermalParameters = ThermalParametersTransient(heatConductivity=heatConductivity)
-simulationParameters = SimulationParameters(trapezoidalParameter = 0.5)
+simulationParameters = SimulationParameters()
 transientHeatProblem = TransientHeat(V, initialTemperatureField=temperatureField_n, thermalParameters=thermalParameters, simulationParameters=simulationParameters)
 transientHeatProblem.getSolution(boundaryConditions, nonZeroInitialGuess=True)

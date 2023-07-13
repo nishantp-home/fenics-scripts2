@@ -3,7 +3,7 @@ from fenics import *
 class OutputFile:
     def __init__(self, fileName, listOfFields) -> None:
         self._fileName = fileName
-        self._listOfFields = listOfFields
+        self.listOfFields = listOfFields
         self._fileObject = self._openFile()
 
     def _openFile(self):
@@ -13,7 +13,7 @@ class OutputFile:
         return fileObject
         
     def exportFile(self, time=0):
-        for field in self._listOfFields.values():
+        for field in self.listOfFields.values():
             if field.store == True:
                 self._fileObject.write(field, time)
 

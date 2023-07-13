@@ -1,32 +1,10 @@
 from fenics import *
 from array import *
 import numpy as np
-from .parameterFields import ParameterField
-
-class VolumetricHeatSource(ParameterField):
-    def __init__(self, constant=0.0, spaceDependency=False, temperatureDependency=False, 
-                 spatialExpression=None, temperatureDependentExpression=None, temperatureDependentTable=None, store=False) -> None:
-        self.constant = constant
-        super().__init__(spaceDependency, temperatureDependency, spatialExpression, temperatureDependentExpression, temperatureDependentTable, store)
-
-
-class HeatConductivity(ParameterField):
-    def __init__(self, constant=1.0, spaceDependency=False, temperatureDependency=False, 
-                 spatialExpression=None, temperatureDependentExpression=None, temperatureDependentTable=None, store=False) -> None:
-        self.constant = constant
-        super().__init__(spaceDependency, temperatureDependency, spatialExpression, temperatureDependentExpression, temperatureDependentTable, store)
-        
-class Density(ParameterField):
-    def __init__(self, constant=1.0, spaceDependency=False, temperatureDependency=False, 
-                 spatialExpression=None, temperatureDependentExpression=None, temperatureDependentTable=None, store=False) -> None:
-        self.constant = constant
-        super().__init__(spaceDependency, temperatureDependency, spatialExpression, temperatureDependentExpression, temperatureDependentTable, store)
-
-class HeatCapacity(ParameterField):
-    def __init__(self, constant=1.0, spaceDependency=False, temperatureDependency=False, 
-                 spatialExpression=None, temperatureDependentExpression=None, temperatureDependentTable=None, store=False) -> None:
-        self.constant = constant
-        super().__init__(spaceDependency, temperatureDependency, spatialExpression, temperatureDependentExpression, temperatureDependentTable, store)
+from .volumetricHeatSource import VolumetricHeatSource, MovingVolumetricHeatSource
+from .heatConductivity import HeatConductivity
+from .density import Density
+from .heatCapacity import HeatCapacity
 
 
 class ThermalParametersSteadyState:
@@ -227,3 +205,23 @@ class ThermalParametersTransient(ThermalParametersSteadyState):
         variable = self.getInterpolatedVector(variable, CSVData)
 
         return variable
+
+
+class ThermalParametersTransientLaserBeam(ThermalParametersTransient):
+    def __init__(self, printSettings, density=None, heatCapacity=None, heatConductivity=None, volumetricHeatSource=None) -> None:
+        if volumetricHeatSource != None:
+            print("Not using the input volumetric heat source")
+            print("Computing moving volumetric heat source from print settings")
+
+        volumetricHeatSource = MovingVolumetricHeatSource(printSettings)  #Reassign volumetric heat source
+        super().__init__(density, heatCapacity, heatConductivity, volumetricHeatSource)
+
+        self.volumetricHeatSourceObject = self.getCubicMovingHeatSource(volumetricHeatSource.printSettings)
+         
+
+    def getCubicMovingHeatSource(self, printSettings):
+        heatSource = Expression("(x[0] > v*t & x[0] < hsX + v*t) & (x[1] > width/2 - hsZ/2 & x[1] < width/2 + hsZ/2) & (x[2] > thickness - hsY) ?  q : 0", 
+                                v = printSettings.scanSpeed, t = 0.0, hsX = printSettings.cubeEdgeLength, thickness = printSettings.thickness, hsY = printSettings.cubeEdgeLength, 
+                                width = printSettings.width, hsZ = printSettings.cubeEdgeLength, q = printSettings.laserHeatInput, degree = 0)
+        return heatSource
+

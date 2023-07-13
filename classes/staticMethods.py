@@ -13,7 +13,7 @@ class StaticMethod:
 
     @staticmethod
     def createBoxMesh(specimenSetting):
-        meshObject = BoxMesh(Point(0.0, 0.0, 0.0), Point(specimenSetting.length, specimenSetting.thickness, specimenSetting.width), 
+        meshObject = BoxMesh(Point(0.0, 0.0, 0.0), Point(specimenSetting.length, specimenSetting.width, specimenSetting.thickness), 
                              specimenSetting.cellCountX, specimenSetting.cellCountY, specimenSetting.cellCountZ)
         return meshObject
     

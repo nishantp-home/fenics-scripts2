@@ -16,8 +16,8 @@ class SpecimenSettings(CreateObjectSettings):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.cellCountX = int(self.length*self.cellsPerUnitDimension)
-        self.cellCountY = int(self.thickness*self.cellsPerUnitDimension)
-        self.cellCountZ = int(self.width*self.cellsPerUnitDimension)
+        self.cellCountY = int(self.width*self.cellsPerUnitDimension)
+        self.cellCountZ = int(self.thickness*self.cellsPerUnitDimension)
 
 
 class PrintSettings(CreateObjectSettings):

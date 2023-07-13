@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+<Xdmf Version="3.0" xmlns:xi="http://www.w3.org/2001/XInclude">
+  <Domain>
+    <Grid Name="TimeSeries" GridType="Collection" CollectionType="Temporal">
+      <Grid Name="mesh" GridType="Uniform">
+        <Topology NumberOfElements="120" TopologyType="Tetrahedron" NodesPerElement="4">
+          <DataItem Dimensions="120 4" NumberType="UInt" Format="HDF">transient.h5:/Mesh/0/mesh/topology</DataItem>
+        </Topology>
+        <Geometry GeometryType="XYZ">
+          <DataItem Dimensions="66 3" Format="HDF">transient.h5:/Mesh/0/mesh/geometry</DataItem>
+        </Geometry>
+        <Time Value="0.00020000000000000001" />
+        <Attribute Name="Temperature" AttributeType="Scalar" Center="Node">
+          <DataItem Dimensions="66 1" Format="HDF">transient.h5:/VisualisationVector/0</DataItem>
+        </Attribute>
+      </Grid>
+      <Grid>
+        <xi:include xpointer="xpointer(//Grid[@Name=&quot;TimeSeries&quot;]/Grid[1]/*[self::Topology or self::Geometry])" />
+        <Time Value="0.0004000000000000004" />
+        <Attribute Name="Temperature" AttributeType="Scalar" Center="Node">
+          <DataItem Dimensions="66 1" Format="HDF">transient.h5:/VisualisationVector/1</DataItem>
+        </Attribute>
+      </Grid>
+      <Grid>
+        <xi:include xpointer="xpointer(//Grid[@Name=&quot;TimeSeries&quot;]/Grid[1]/*[self::Topology or self::Geometry])" />
+        <Time Value="0.00060000000000000092" />
+        <Attribute Name="Temperature" AttributeType="Scalar" Center="Node">
+          <DataItem Dimensions="66 1" Format="HDF">transient.h5:/VisualisationVector/2</DataItem>
+        </Attribute>
+      </Grid>
+      <Grid>
+        <xi:include xpointer="xpointer(//Grid[@Name=&quot;TimeSeries&quot;]/Grid[1]/*[self::Topology or self::Geometry])" />
+        <Time Value="0.00080000000000000145" />
+        <Attribute Name="Temperature" AttributeType="Scalar" Center="Node">
+          <DataItem Dimensions="66 1" Format="HDF">transient.h5:/VisualisationVector/3</DataItem>
+        </Attribute>
+      </Grid>
+      <Grid>
+        <xi:include xpointer="xpointer(//Grid[@Name=&quot;TimeSeries&quot;]/Grid[1]/*[self::Topology or self::Geometry])" />
+        <Time Value="0.001" />
+        <Attribute Name="Temperature" AttributeType="Scalar" Center="Node">
+          <DataItem Dimensions="66 1" Format="HDF">transient.h5:/VisualisationVector/4</DataItem>
+        </Attribute>
+      </Grid>
+    </Grid>
+  </Domain>
+</Xdmf>

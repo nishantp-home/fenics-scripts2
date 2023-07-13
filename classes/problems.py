@@ -2,8 +2,9 @@ from fenics import *
 from abc import abstractstaticmethod, ABCMeta
 from .outputFile import OutputFile
 from .newFunction import NewFunction
-from .thermalMaterial import ThermalParametersSteadyState, ThermalParametersTransient
-from .simulationParameters import SimulationParameters
+from .thermalMaterial import ThermalParametersSteadyState, ThermalParametersTransient, ThermalParametersTransientLaserBeam, MovingVolumetricHeatSource
+from .simulationParameters import SimulationParameters, PrintSimulationParameters
+from .printSettings import PrintSettings, PrintSettings
 
 class IProblem(metaclass = ABCMeta):
     """Interface for thermal problems"""
@@ -154,6 +155,34 @@ class SteadyStateHeat(IProblem):
         return solution
     
 
+class SteadyStateNew(SteadyStateHeat):
+    def __init__(self, functionSpace, boundaryConditions, fileName="Steady-state", thermalParameters=None) -> None:
+        super().__init__(functionSpace, fileName, thermalParameters)
+        self.bcs = boundaryConditions
+
+
+    def getSolution(self, nonZeroInitialGuess=False):
+        """Combined function to solve linear and non-linear FEM problem"""
+
+        solution = NewFunction(self.functionSpace, name="Temperature", store=True)
+        listOfFields = {"Solution":solution}   #Default list of fields
+        listOfFields = self.setupListOfStoredFields(listOfFields)
+
+        file = OutputFile(self.fileName, listOfFields)
+
+        if(self.solverType == 'Linear' or self.solverType == 'Non-linear'):
+            self.solveSteadyStateProblem(self.bcs, solution, nonZeroInitialGuess)
+        
+        else:
+            raise Exception("solverType can be Linear or Non-linear")
+
+        self.assignListOfStoredFields(listOfFields)
+        file.exportFile() #Exporting fields to output file
+
+    
+
+
+    
 class TransientHeat(SteadyStateHeat):
     def __init__(self, functionSpace, initialTemperatureField, fileName="transient", thermalParameters=None, simulationParameters=None) -> None:
         if thermalParameters == None:
@@ -174,6 +203,7 @@ class TransientHeat(SteadyStateHeat):
         theta = self.simulationParameters.trapezoidalParameter
         dt = self.simulationParameters.dt
         dynamicFieldStorage = False
+        movingHeatSourceProblem = False
 
         if(self.thermalParameters.heatConductivity.temperatureDependency == True):
             kappa = self.thermalParameters.heatConductivityObject(solution)  #Returns a heat conductivity function
@@ -185,6 +215,9 @@ class TransientHeat(SteadyStateHeat):
             f = self.thermalParameters.volumetricHeatSourceObject(solution) #Returns a volumetric heat source function
             dynamicFieldStorage = True
         else:
+            movingHeatSourceProblem = isinstance(self.thermalParameters.volumetricHeatSource, MovingVolumetricHeatSource)
+            if(movingHeatSourceProblem):
+                dynamicFieldStorage = True
             f = self.thermalParameters.volumetricHeatSourceObject
 
         if(self.thermalParameters.density.temperatureDependency == True):
@@ -203,7 +236,10 @@ class TransientHeat(SteadyStateHeat):
             biLinearForm = theta*dt*inner(nabla_grad(v), kappa*nabla_grad(du))*dx + rho*c*du*v*dx
             linearForm = (rho*c*T_previous*v + dt*f*v - (1-theta)*dt*inner(nabla_grad(v), kappa*nabla_grad(du)))*dx
 
-            return biLinearForm, linearForm
+            if(movingHeatSourceProblem):
+                return biLinearForm, linearForm, dynamicFieldStorage
+            else:
+                return biLinearForm, linearForm
 
         elif(self.solverType == 'Non-linear'):
             if(solution == None):
@@ -298,15 +334,19 @@ class TransientHeat(SteadyStateHeat):
         timeStepCount = 0
         dynamicFieldStorage = False
         
+        movingHeatSourceProblem = isinstance(self.thermalParameters.volumetricHeatSource, MovingVolumetricHeatSource)
+
         if self.solverType == 'Linear':
-            biLinearForm, linearForm = self.defineVariationalProblem(T_previous)  
+            if(movingHeatSourceProblem):
+                biLinearForm, linearForm, dynamicFieldStorage = self.defineVariationalProblem(T_previous)  
+            else:
+                biLinearForm, linearForm = self.defineVariationalProblem(T_previous)  
             
         elif self.solverType == 'Non-linear':
             F, J, dynamicFieldStorage = self.defineVariationalProblem(T_previous, solution)
 
             if(dynamicFieldStorage == False):
                 self.assignListOfStoredFields(listOfFields)
-
 
         currentTime = 0
         storedFrameCount = 0
@@ -316,6 +356,7 @@ class TransientHeat(SteadyStateHeat):
             currentTime += dt
             if((abs(currentTime-totalTime)) < timeTolerance):
                 currentTime = totalTime
+
 
             storeFrame = (timeStepCount%storeFrequency == 0) or (currentTime == totalTime)
             if storeFrame:
@@ -347,73 +388,22 @@ class TransientHeat(SteadyStateHeat):
                 file.exportFile(currentTime)       #Exporting fields to output file
 
             T_previous.assign(solution)
+            if(movingHeatSourceProblem):
+                self.thermalParameters.volumetricHeatSourceObject.t = currentTime
 
 
-class TransientMovingHeatSource(IProblem):
-    """To be implemented in a clean way by inheriting form steadystate class"""
-    
-    def __init__(self, thermalMaterialParameters, printSettings, fileName) -> None:
-        self.density = thermalMaterialParameters.density
-        self.heatCapacity = thermalMaterialParameters.heatCapacity
-        self.heatConductivity = thermalMaterialParameters.heatConductivity
-        self.fileName = fileName
-        self.specimenLength = printSettings.length
-        self.specimenWidth = printSettings.width
-        self.specimenThickness = printSettings.thickness
-        self.hsX = printSettings.heatSourceSizeX / 1000   #in mmm
-        self.hsY = printSettings.heatSourceSizeY / 1000   #in mmm
-        self.hsZ = printSettings.heatSourceSizeZ / 1000   #in mmm
-        self.scanSpeed = printSettings.scanSpeed
-        self.totalTime = printSettings.length / printSettings.scanSpeed
-        self.heatInput = (printSettings.laserEfficiency*printSettings.laserPower)/(self.hsX*self.hsY*self.hsZ) 
-        self.dt = 1e-5 
-        self.storeFrequency = 10
+class TransientHeatLaserBeam(TransientHeat):
+    def __init__(self, functionSpace, initialTemperatureField, printSettings, fileName="print", thermalParameters=None, simulationParameters=None) -> None:
 
-    def getCubicMovingHeatSource(self, time):
-        heatSource = Expression("(x[0] > v*t & x[0] < hsX + v*t) & (x[1] > width/2 - hsZ/2 & x[1] < width/2 + hsZ/2) & (x[2] > thickness - hsY) ?  q : 0", 
-                                v = self.scanSpeed, t = time, hsX = self.hsX, thickness = self.specimenThickness, hsY = self.hsY, 
-                                width = self.specimenWidth, hsZ = self.hsZ, q = self.heatInput, degree = 0)
-        return heatSource
-        
-    def defineVariationalProblem(self, functionSpace, previousTemperature, heatSource):
-        self.v = TestFunction(functionSpace)
-        self.u = TrialFunction(functionSpace)
-        self.F = self.density*self.heatCapacity*self.u*self.v*dx + self.dt*self.heatConductivity*dot(grad(self.u), grad( self.v))*dx - (self.density*self.heatCapacity*previousTemperature + self.dt*heatSource)* self.v*dx  
-        self.a, self.L =  lhs(self.F), rhs(self.F)
-        return self.a, self.L
+        self.printSettings = printSettings
+        if(thermalParameters == None):
+            thermalParameters = ThermalParametersTransientLaserBeam(printSettings=self.printSettings) #Reassign thermalParameters from printsettings
+        simulationParameters = PrintSimulationParameters(printSettings=self.printSettings)  #Reassign simulation parameters from printsettings
 
-    def linearSolve(self, functionSpace, boundaryConditions, previousTemperature):
-        fileObject = File(self.fileName)
-        solution = Function(functionSpace, name = "Temperature")
-        solution.assign(previousTemperature)
-        currentTime = 0.0
-        fileObject<<(solution, currentTime)
-        heatSource = self.getCubicMovingHeatSource(currentTime)
-        timeStep = 0        
-        biLinearForm, linearForm = self.defineVariationalProblem(functionSpace, previousTemperature, heatSource)
-
-        while currentTime < self.totalTime:
-            timeStep += 1
-            solve(biLinearForm==linearForm, solution, boundaryConditions)
-            if(timeStep%self.storeFrequency == 0):
-                print("time (steps: " + str(timeStep) + " time:" + str(currentTime))
-                fileObject<< (solution, currentTime)
-            previousTemperature.assign(solution)
-            currentTime += self.dt
-            heatSource.t = currentTime
-
-
-    def defineNonLinearVariationalProblem(self):
-        raise RuntimeError("Not implemented")
-    
-    def nonLinearSolve(self):
-        raise RuntimeError("Not implemented")
+        super().__init__(functionSpace, initialTemperatureField, fileName, thermalParameters, simulationParameters)
 
 
     def checkEnergyBalance(self):
         raise RuntimeError("Not implemented")
 
-        
-    def getSolution(self):
-        raise RuntimeError("Not implemented")
- 
+
